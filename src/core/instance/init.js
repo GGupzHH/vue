@@ -13,6 +13,7 @@ import { extend, mergeOptions, formatComponentName } from '../util/index'
 let uid = 0
 
 export function initMixin (Vue: Class<Component>) {
+  // 给Vue 实例增加 _init方法
   Vue.prototype._init = function (options?: Object) {
     const vm: Component = this
     // a uid
@@ -27,12 +28,15 @@ export function initMixin (Vue: Class<Component>) {
     }
 
     // a flag to avoid this being observed
+    // 如果是 Vue实例 不需要被observe (响应式处理)
     vm._isVue = true
     // merge options
+    // 合并用户传入的options 和 初始化的options
     if (options && options._isComponent) {
       // optimize internal component instantiation
       // since dynamic options merging is pretty slow, and none of the
       // internal component options needs special treatment.
+      console.log(vm, options)
       initInternalComponent(vm, options)
     } else {
       vm.$options = mergeOptions(
@@ -49,13 +53,26 @@ export function initMixin (Vue: Class<Component>) {
     }
     // expose real self
     vm._self = vm
+    // 初始化函数 给 Vue实例成员初始化
+    // 初始化生命周期相关的钩子函数
     initLifecycle(vm)
+    // 初始化一些事件
     initEvents(vm)
+    // 初始化render函数
+    // $slots  $scopedSlots  _c  $createElement  $attrs  $listeners
     initRender(vm)
+    // 触发生命周期函数  beforeCreate
     callHook(vm, 'beforeCreate')
+    // 实现依赖注入 inject
     initInjections(vm) // resolve injections before data/props
+
+    // 初始化了 props methods data computed watch
+    // 并将对应属性设置成响应式挂载到 vm 实例
     initState(vm)
+
+     // 实现依赖注入 provide
     initProvide(vm) // resolve provide after data/props
+    // 触发生命周期函数  beforeCreate
     callHook(vm, 'created')
 
     /* istanbul ignore if */
@@ -65,23 +82,26 @@ export function initMixin (Vue: Class<Component>) {
       measure(`vue ${vm._name} init`, startTag, endTag)
     }
 
+    //  调用 $mount 挂载整个页面
     if (vm.$options.el) {
       vm.$mount(vm.$options.el)
     }
   }
 }
 
-function initInternalComponent (vm: Component, options: InternalComponentOptions) {
+export function initInternalComponent (vm: Component, options: InternalComponentOptions) {
   const opts = vm.$options = Object.create(vm.constructor.options)
   // doing this because it's faster than dynamic enumeration.
+  const parentVnode = options._parentVnode
   opts.parent = options.parent
-  opts.propsData = options.propsData
-  opts._parentVnode = options._parentVnode
-  opts._parentListeners = options._parentListeners
-  opts._renderChildren = options._renderChildren
-  opts._componentTag = options._componentTag
-  opts._parentElm = options._parentElm
-  opts._refElm = options._refElm
+  opts._parentVnode = parentVnode
+
+  const vnodeComponentOptions = parentVnode.componentOptions
+  opts.propsData = vnodeComponentOptions.propsData
+  opts._parentListeners = vnodeComponentOptions.listeners
+  opts._renderChildren = vnodeComponentOptions.children
+  opts._componentTag = vnodeComponentOptions.tag
+
   if (options.render) {
     opts.render = options.render
     opts.staticRenderFns = options.staticRenderFns
@@ -115,32 +135,12 @@ export function resolveConstructorOptions (Ctor: Class<Component>) {
 function resolveModifiedOptions (Ctor: Class<Component>): ?Object {
   let modified
   const latest = Ctor.options
-  const extended = Ctor.extendOptions
   const sealed = Ctor.sealedOptions
   for (const key in latest) {
     if (latest[key] !== sealed[key]) {
       if (!modified) modified = {}
-      modified[key] = dedupe(latest[key], extended[key], sealed[key])
+      modified[key] = latest[key]
     }
   }
   return modified
-}
-
-function dedupe (latest, extended, sealed) {
-  // compare latest and sealed to ensure lifecycle hooks won't be duplicated
-  // between merges
-  if (Array.isArray(latest)) {
-    const res = []
-    sealed = Array.isArray(sealed) ? sealed : [sealed]
-    extended = Array.isArray(extended) ? extended : [extended]
-    for (let i = 0; i < latest.length; i++) {
-      // push original options and not sealed options to exclude duplicated options
-      if (extended.indexOf(latest[i]) >= 0 || sealed.indexOf(latest[i]) < 0) {
-        res.push(latest[i])
-      }
-    }
-    return res
-  } else {
-    return latest
-  }
 }

@@ -1,16 +1,16 @@
 /* @flow */
 
 import config from '../config'
-import Dep from '../observer/dep'
 import Watcher from '../observer/watcher'
+import Dep, { pushTarget, popTarget } from '../observer/dep'
 import { isUpdatingChildComponent } from './lifecycle'
 
 import {
   set,
   del,
   observe,
-  observerState,
-  defineReactive
+  defineReactive,
+  toggleObserving
 } from '../observer/index'
 
 import {
@@ -48,13 +48,21 @@ export function proxy (target: Object, sourceKey: string, key: string) {
 export function initState (vm: Component) {
   vm._watchers = []
   const opts = vm.$options
+  // 判断 $options中是否存在下列属性  存在则初始化
+
+  // 将 props中的数据设置成响应式 并且存储到 vm 实例
   if (opts.props) initProps(vm, opts.props)
+  // 初始化methods 将methods中的方法注入到 vm 实例 并在过程中进行一系列判断
   if (opts.methods) initMethods(vm, opts.methods)
+  // 判断当前是否传入 data 
   if (opts.data) {
+    // 初始化 data
     initData(vm)
   } else {
+    // 如果没有传入 则设置一个空对象 并且 使用observer设置成响应式
     observe(vm._data = {}, true /* asRootData */)
   }
+  // 下面同上
   if (opts.computed) initComputed(vm, opts.computed)
   if (opts.watch && opts.watch !== nativeWatch) {
     initWatch(vm, opts.watch)
@@ -69,8 +77,12 @@ function initProps (vm: Component, propsOptions: Object) {
   const keys = vm.$options._propKeys = []
   const isRoot = !vm.$parent
   // root instance props should be converted
-  observerState.shouldConvert = isRoot
+  if (!isRoot) {
+    toggleObserving(false)
+  }
+  // 遍历要设置的props
   for (const key in propsOptions) {
+    // 将  propsOptions  中的  key push到 keys
     keys.push(key)
     const value = validateProp(key, propsOptions, propsData, vm)
     /* istanbul ignore else */
@@ -83,8 +95,9 @@ function initProps (vm: Component, propsOptions: Object) {
           vm
         )
       }
+      // 将 key 注入到  props（vm._props） 中
       defineReactive(props, key, value, () => {
-        if (vm.$parent && !isUpdatingChildComponent) {
+        if (!isRoot && !isUpdatingChildComponent) {
           warn(
             `Avoid mutating a prop directly since the value will be ` +
             `overwritten whenever the parent component re-renders. ` +
@@ -100,17 +113,24 @@ function initProps (vm: Component, propsOptions: Object) {
     // static props are already proxied on the component's prototype
     // during Vue.extend(). We only need to proxy props defined at
     // instantiation here.
+    // 最后判断 props key 是否在vm实例上 如果不在则注入
     if (!(key in vm)) {
+      // 通过 defineProperty 注入到 vm 实例
+      // 获取的时候也是通过 _props 获取
       proxy(vm, `_props`, key)
     }
   }
-  observerState.shouldConvert = true
+  toggleObserving(true)
 }
 
 function initData (vm: Component) {
   let data = vm.$options.data
+  // 先判断是否是函数
+  // 因为在new Vue 的时候 传入的data就是对象的形式  其余的都是 函数形式 
   data = vm._data = typeof data === 'function'
+  // 如果函数 则调用函数 并且改变函数的this指向
     ? getData(data, vm)
+    // 如果不是 则直接获取data
     : data || {}
   if (!isPlainObject(data)) {
     data = {}
@@ -121,13 +141,16 @@ function initData (vm: Component) {
     )
   }
   // proxy data on instance
+  // 获取之前定义好的属性
   const keys = Object.keys(data)
   const props = vm.$options.props
   const methods = vm.$options.methods
   let i = keys.length
+  // 遍历data 并且判断当前 key 是否在methods 等 中使用过
   while (i--) {
     const key = keys[i]
     if (process.env.NODE_ENV !== 'production') {
+      // 判断 methods 中是否有重名
       if (methods && hasOwn(methods, key)) {
         warn(
           `Method "${key}" has already been defined as a data property.`,
@@ -135,6 +158,7 @@ function initData (vm: Component) {
         )
       }
     }
+    // 判断 props 中是否有重名
     if (props && hasOwn(props, key)) {
       process.env.NODE_ENV !== 'production' && warn(
         `The data property "${key}" is already declared as a prop. ` +
@@ -142,25 +166,32 @@ function initData (vm: Component) {
         vm
       )
     } else if (!isReserved(key)) {
+      // 如果没有重名则将 data 中的属性设置成响应式并且挂载到_data上
       proxy(vm, `_data`, key)
     }
   }
   // observe data
+  // 将 data 设置成响应式
   observe(data, true /* asRootData */)
 }
 
-function getData (data: Function, vm: Component): any {
+export function getData (data: Function, vm: Component): any {
+  // #7573 disable dep collection when invoking data getters
+  pushTarget()
   try {
     return data.call(vm, vm)
   } catch (e) {
     handleError(e, vm, `data()`)
     return {}
+  } finally {
+    popTarget()
   }
 }
 
 const computedWatcherOptions = { lazy: true }
 
 function initComputed (vm: Component, computed: Object) {
+  // $flow-disable-line
   const watchers = vm._computedWatchers = Object.create(null)
   // computed properties are just getters during SSR
   const isSSR = isServerRendering()
@@ -209,17 +240,15 @@ export function defineComputed (
   if (typeof userDef === 'function') {
     sharedPropertyDefinition.get = shouldCache
       ? createComputedGetter(key)
-      : userDef
+      : createGetterInvoker(userDef)
     sharedPropertyDefinition.set = noop
   } else {
     sharedPropertyDefinition.get = userDef.get
       ? shouldCache && userDef.cache !== false
         ? createComputedGetter(key)
-        : userDef.get
+        : createGetterInvoker(userDef.get)
       : noop
-    sharedPropertyDefinition.set = userDef.set
-      ? userDef.set
-      : noop
+    sharedPropertyDefinition.set = userDef.set || noop
   }
   if (process.env.NODE_ENV !== 'production' &&
       sharedPropertyDefinition.set === noop) {
@@ -248,23 +277,37 @@ function createComputedGetter (key) {
   }
 }
 
+function createGetterInvoker(fn) {
+  return function computedGetter () {
+    return fn.call(this, this)
+  }
+}
+
 function initMethods (vm: Component, methods: Object) {
+  // 先获取当前初始化完成的 props 是为了防止 methods 中的方法和 props中的变量重名
   const props = vm.$options.props
+  // 同样遍历 methods 中的方法
   for (const key in methods) {
     if (process.env.NODE_ENV !== 'production') {
-      if (methods[key] == null) {
+      // 判断当前 methods key对应的方法是否是function
+      // 因为methods中存储的都是function
+      if (typeof methods[key] !== 'function') {
         warn(
-          `Method "${key}" has an undefined value in the component definition. ` +
+          `Method "${key}" has type "${typeof methods[key]}" in the component definition. ` +
           `Did you reference the function correctly?`,
           vm
         )
       }
+      // 判断当前 methods 中的 key 是否在 props 中存在
       if (props && hasOwn(props, key)) {
         warn(
           `Method "${key}" has already been defined as a prop.`,
           vm
         )
       }
+      // 判断当前 methods 的  key对应的方法是否已经存在vm实例上
+      // 并且 函数名 是否是 以  _ or $ 开头 （_ or $是vue私有方法）
+      // 所以不建议这样的命名
       if ((key in vm) && isReserved(key)) {
         warn(
           `Method "${key}" conflicts with an existing Vue instance method. ` +
@@ -272,7 +315,11 @@ function initMethods (vm: Component, methods: Object) {
         )
       }
     }
-    vm[key] = methods[key] == null ? noop : bind(methods[key], vm)
+    // 最后将函数绑定到vm实例上
+    // 并且先判断 key 对应的 是否是函数
+    // 如果是函数 则 用bind 让函数的this指向vm
+    // 如果不是函数 则设置成 Noop ( 一个空函数)
+    vm[key] = typeof methods[key] !== 'function' ? noop : bind(methods[key], vm)
   }
 }
 
@@ -291,7 +338,7 @@ function initWatch (vm: Component, watch: Object) {
 
 function createWatcher (
   vm: Component,
-  keyOrFn: string | Function,
+  expOrFn: string | Function,
   handler: any,
   options?: Object
 ) {
@@ -302,7 +349,7 @@ function createWatcher (
   if (typeof handler === 'string') {
     handler = vm[handler]
   }
-  return vm.$watch(keyOrFn, handler, options)
+  return vm.$watch(expOrFn, handler, options)
 }
 
 export function stateMixin (Vue: Class<Component>) {
@@ -313,8 +360,9 @@ export function stateMixin (Vue: Class<Component>) {
   dataDef.get = function () { return this._data }
   const propsDef = {}
   propsDef.get = function () { return this._props }
+  // 如果不是生产环境则不能修改 $data $props这些属性
   if (process.env.NODE_ENV !== 'production') {
-    dataDef.set = function (newData: Object) {
+    dataDef.set = function () {
       warn(
         'Avoid replacing instance root $data. ' +
         'Use nested data properties instead.',
@@ -325,6 +373,8 @@ export function stateMixin (Vue: Class<Component>) {
       warn(`$props is readonly.`, this)
     }
   }
+
+  // 给Vue原型增加
   Object.defineProperty(Vue.prototype, '$data', dataDef)
   Object.defineProperty(Vue.prototype, '$props', propsDef)
 
@@ -344,7 +394,11 @@ export function stateMixin (Vue: Class<Component>) {
     options.user = true
     const watcher = new Watcher(vm, expOrFn, cb, options)
     if (options.immediate) {
-      cb.call(vm, watcher.value)
+      try {
+        cb.call(vm, watcher.value)
+      } catch (error) {
+        handleError(error, vm, `callback for immediate watcher "${watcher.expression}"`)
+      }
     }
     return function unwatchFn () {
       watcher.teardown()

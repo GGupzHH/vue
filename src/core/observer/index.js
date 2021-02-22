@@ -10,6 +10,8 @@ import {
   hasProto,
   isObject,
   isPlainObject,
+  isPrimitive,
+  isUndef,
   isValidArrayIndex,
   isServerRendering
 } from '../util/index'
@@ -17,36 +19,39 @@ import {
 const arrayKeys = Object.getOwnPropertyNames(arrayMethods)
 
 /**
- * By default, when a reactive property is set, the new value is
- * also converted to become reactive. However when passing down props,
- * we don't want to force conversion because the value may be a nested value
- * under a frozen data structure. Converting it would defeat the optimization.
+ * In some cases we may want to disable observation inside a component's
+ * update computation.
  */
-export const observerState = {
-  shouldConvert: true
+export let shouldObserve: boolean = true
+
+export function toggleObserving (value: boolean) {
+  shouldObserve = value
 }
 
 /**
- * Observer class that are attached to each observed
- * object. Once attached, the observer converts target
+ * Observer class that is attached to each observed
+ * object. Once attached, the observer converts the target
  * object's property keys into getter/setters that
- * collect dependencies and dispatches updates.
+ * collect dependencies and dispatch updates.
  */
 export class Observer {
   value: any;
   dep: Dep;
-  vmCount: number; // number of vms that has this object as root $data
+  vmCount: number; // number of vms that have this object as root $data
 
   constructor (value: any) {
     this.value = value
     this.dep = new Dep()
     this.vmCount = 0
+    // 判断是否已经设置响应式 
     def(value, '__ob__', this)
+    // 判断当前是数组还是对象
     if (Array.isArray(value)) {
-      const augment = hasProto
-        ? protoAugment
-        : copyAugment
-      augment(value, arrayMethods, arrayKeys)
+      if (hasProto) {
+        protoAugment(value, arrayMethods)
+      } else {
+        copyAugment(value, arrayMethods, arrayKeys)
+      }
       this.observeArray(value)
     } else {
       this.walk(value)
@@ -54,14 +59,15 @@ export class Observer {
   }
 
   /**
-   * Walk through each property and convert them into
+   * Walk through all properties and convert them into
    * getter/setters. This method should only be called when
    * value type is Object.
+   * 如果是对象则遍历调用 defineReactive 设置响应式
    */
   walk (obj: Object) {
     const keys = Object.keys(obj)
     for (let i = 0; i < keys.length; i++) {
-      defineReactive(obj, keys[i], obj[keys[i]])
+      defineReactive(obj, keys[i])
     }
   }
 
@@ -78,17 +84,17 @@ export class Observer {
 // helpers
 
 /**
- * Augment an target Object or Array by intercepting
+ * Augment a target Object or Array by intercepting
  * the prototype chain using __proto__
  */
-function protoAugment (target, src: Object, keys: any) {
+function protoAugment (target, src: Object) {
   /* eslint-disable no-proto */
   target.__proto__ = src
   /* eslint-enable no-proto */
 }
 
 /**
- * Augment an target Object or Array by defining
+ * Augment a target Object or Array by defining
  * hidden properties.
  */
 /* istanbul ignore next */
@@ -112,7 +118,7 @@ export function observe (value: any, asRootData: ?boolean): Observer | void {
   if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
     ob = value.__ob__
   } else if (
-    observerState.shouldConvert &&
+    shouldObserve &&
     !isServerRendering() &&
     (Array.isArray(value) || isPlainObject(value)) &&
     Object.isExtensible(value) &&
@@ -136,22 +142,30 @@ export function defineReactive (
   customSetter?: ?Function,
   shallow?: boolean
 ) {
+  // 创建 dep 对象
   const dep = new Dep()
 
+  // 判断当前属性是否是可设置的
   const property = Object.getOwnPropertyDescriptor(obj, key)
   if (property && property.configurable === false) {
     return
   }
 
   // cater for pre-defined getter/setters
+  // 获取当前用户已经设置的 getter  setter
   const getter = property && property.get
   const setter = property && property.set
+  if ((!getter || setter) && arguments.length === 2) {
+    val = obj[key]
+  }
 
   let childOb = !shallow && observe(val)
   Object.defineProperty(obj, key, {
+    // 可枚举 可配置
     enumerable: true,
     configurable: true,
     get: function reactiveGetter () {
+      // 如果用户已经给当前 key 设置了 getter 则执行用户设置的回调 并且返回 是value
       const value = getter ? getter.call(obj) : val
       if (Dep.target) {
         dep.depend()
@@ -165,8 +179,10 @@ export function defineReactive (
       return value
     },
     set: function reactiveSetter (newVal) {
+      // 先获取当前 key 对应的 值
       const value = getter ? getter.call(obj) : val
       /* eslint-disable no-self-compare */
+      // 判断新旧是否相同   后面是判断是否是NaN
       if (newVal === value || (newVal !== newVal && value !== value)) {
         return
       }
@@ -174,12 +190,17 @@ export function defineReactive (
       if (process.env.NODE_ENV !== 'production' && customSetter) {
         customSetter()
       }
+      // #7981: for accessor properties without setter
+      // getter 存在 setter不存在 只读属性
+      if (getter && !setter) return
+      // 判断用户是否传入了setter
       if (setter) {
         setter.call(obj, newVal)
       } else {
         val = newVal
       }
       childOb = !shallow && observe(newVal)
+      // 派发更新
       dep.notify()
     }
   })
@@ -191,12 +212,17 @@ export function defineReactive (
  * already exist.
  */
 export function set (target: Array<any> | Object, key: any, val: any): any {
+  if (process.env.NODE_ENV !== 'production' &&
+    (isUndef(target) || isPrimitive(target))
+  ) {
+    warn(`Cannot set reactive property on undefined, null, or primitive value: ${(target: any)}`)
+  }
   if (Array.isArray(target) && isValidArrayIndex(key)) {
     target.length = Math.max(target.length, key)
     target.splice(key, 1, val)
     return val
   }
-  if (hasOwn(target, key)) {
+  if (key in target && !(key in Object.prototype)) {
     target[key] = val
     return val
   }
@@ -221,6 +247,11 @@ export function set (target: Array<any> | Object, key: any, val: any): any {
  * Delete a property and trigger change if necessary.
  */
 export function del (target: Array<any> | Object, key: any) {
+  if (process.env.NODE_ENV !== 'production' &&
+    (isUndef(target) || isPrimitive(target))
+  ) {
+    warn(`Cannot delete reactive property on undefined, null, or primitive value: ${(target: any)}`)
+  }
   if (Array.isArray(target) && isValidArrayIndex(key)) {
     target.splice(key, 1)
     return
