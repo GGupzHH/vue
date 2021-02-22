@@ -43,7 +43,9 @@ export class Observer {
     this.value = value
     this.dep = new Dep()
     this.vmCount = 0
+    // 判断是否已经设置响应式 
     def(value, '__ob__', this)
+    // 判断当前是数组还是对象
     if (Array.isArray(value)) {
       if (hasProto) {
         protoAugment(value, arrayMethods)
@@ -60,6 +62,7 @@ export class Observer {
    * Walk through all properties and convert them into
    * getter/setters. This method should only be called when
    * value type is Object.
+   * 如果是对象则遍历调用 defineReactive 设置响应式
    */
   walk (obj: Object) {
     const keys = Object.keys(obj)
@@ -139,14 +142,17 @@ export function defineReactive (
   customSetter?: ?Function,
   shallow?: boolean
 ) {
+  // 创建 dep 对象
   const dep = new Dep()
 
+  // 判断当前属性是否是可设置的
   const property = Object.getOwnPropertyDescriptor(obj, key)
   if (property && property.configurable === false) {
     return
   }
 
   // cater for pre-defined getter/setters
+  // 获取当前用户已经设置的 getter  setter
   const getter = property && property.get
   const setter = property && property.set
   if ((!getter || setter) && arguments.length === 2) {
@@ -155,9 +161,11 @@ export function defineReactive (
 
   let childOb = !shallow && observe(val)
   Object.defineProperty(obj, key, {
+    // 可枚举 可配置
     enumerable: true,
     configurable: true,
     get: function reactiveGetter () {
+      // 如果用户已经给当前 key 设置了 getter 则执行用户设置的回调 并且返回 是value
       const value = getter ? getter.call(obj) : val
       if (Dep.target) {
         dep.depend()
@@ -171,8 +179,10 @@ export function defineReactive (
       return value
     },
     set: function reactiveSetter (newVal) {
+      // 先获取当前 key 对应的 值
       const value = getter ? getter.call(obj) : val
       /* eslint-disable no-self-compare */
+      // 判断新旧是否相同   后面是判断是否是NaN
       if (newVal === value || (newVal !== newVal && value !== value)) {
         return
       }
@@ -181,13 +191,16 @@ export function defineReactive (
         customSetter()
       }
       // #7981: for accessor properties without setter
+      // getter 存在 setter不存在 只读属性
       if (getter && !setter) return
+      // 判断用户是否传入了setter
       if (setter) {
         setter.call(obj, newVal)
       } else {
         val = newVal
       }
       childOb = !shallow && observe(newVal)
+      // 派发更新
       dep.notify()
     }
   })
