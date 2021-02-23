@@ -167,7 +167,12 @@ export function defineReactive (
     get: function reactiveGetter () {
       // 如果用户已经给当前 key 设置了 getter 则执行用户设置的回调 并且返回 是value
       const value = getter ? getter.call(obj) : val
+      // 判断当前 dep 对象是否创建了Watcher
+      // Dep.target 是在 new Watcher 赋值的
       if (Dep.target) {
+        // 创建则调用 depend
+        //  depend 调用 Watcher的addDep
+        // 然后Watcher调用  dep.addSub 将当前Watcher添加到 Dep.subs数组中
         dep.depend()
         if (childOb) {
           childOb.dep.depend()
