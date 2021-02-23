@@ -26,7 +26,9 @@ methodsToPatch.forEach(function (method) {
   const original = arrayProto[method]
   def(arrayMethods, method, function mutator (...args) {
     const result = original.apply(this, args)
+    // 获取数组对象的 ob 对象
     const ob = this.__ob__
+    //  inserted 新插入的元素 
     let inserted
     switch (method) {
       case 'push':
@@ -39,6 +41,7 @@ methodsToPatch.forEach(function (method) {
     }
     if (inserted) ob.observeArray(inserted)
     // notify change
+    // 派发
     ob.dep.notify()
     return result
   })
