@@ -99,6 +99,7 @@ export default class Watcher {
    * Evaluate the getter, and re-collect dependencies.
    */
   get () {
+    // 给Dep.target 赋值
     pushTarget(this)
     let value
     const vm = this.vm
@@ -126,11 +127,16 @@ export default class Watcher {
    * Add a dependency to this directive.
    */
   addDep (dep: Dep) {
+    // 每一个Dep都有ID
     const id = dep.id
+    // 判断当时是否已经存储了Dep对象
     if (!this.newDepIds.has(id)) {
+      // 如果没有则把ID 和 Dep 保存
+      // 也就是给Watcher这种添加Dep 为了处理一个小细节
       this.newDepIds.add(id)
       this.newDeps.push(dep)
       if (!this.depIds.has(id)) {
+        // 然后把当前Watcher 添加到 Dep 对象的 subs数组中
         dep.addSub(this)
       }
     }

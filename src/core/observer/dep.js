@@ -29,6 +29,7 @@ export default class Dep {
   }
 
   depend () {
+    // 如果Dep.target存在  则把Dep对象添加到Watcher的依赖中
     if (Dep.target) {
       Dep.target.addDep(this)
     }
@@ -49,6 +50,8 @@ export default class Dep {
   }
 }
 
+// Dep.target 是用来存放目前正在使用的Watcher
+// 全局唯一 并且一次也只能有一个watcher被使用
 // The current target watcher being evaluated.
 // This is globally unique because only one watcher
 // can be evaluated at a time.
@@ -56,7 +59,10 @@ Dep.target = null
 const targetStack = []
 
 export function pushTarget (target: ?Watcher) {
+  // target 就是 Watcher 
+  // 入栈 每一个组件对应一个Watcher对象 当组件嵌套的时候 发现A组件还有子组件 那就去渲染子组件 当前A组件渲染被挂起 所以Watcher也被挂起
   targetStack.push(target)
+  // 赋值
   Dep.target = target
 }
 
