@@ -47,11 +47,17 @@ export class Observer {
     def(value, '__ob__', this)
     // 判断当前是数组还是对象
     if (Array.isArray(value)) {
+      // export const hasProto = '__proto__' in {}
+      // hasProto 判断当前运行环境是否支持 原型属性 __proto__
       if (hasProto) {
+        // 如果支持则
+        // 将当前 value 的构造函数的原型(Array) 原型设置成 arrayMethods
+        // arrayMethods内部实现了 "劫持" 的功能  将Array的实例方法劫持 使得能够知道数组什么时候变化
         protoAugment(value, arrayMethods)
       } else {
         copyAugment(value, arrayMethods, arrayKeys)
       }
+      // 遍历数组的每一项  给数组中的每一项创建observer实例
       this.observeArray(value)
     } else {
       this.walk(value)
