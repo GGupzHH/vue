@@ -5,6 +5,7 @@ import { detectErrors } from './error-detector'
 import { createCompileToFunctionFn } from './to-function'
 
 export function createCompilerCreator (baseCompile: Function): Function {
+  // baseOptions 是把 baseOptions 进行合并
   return function createCompiler (baseOptions: CompilerOptions) {
     function compile (
       template: string,
@@ -37,6 +38,7 @@ export function createCompilerCreator (baseCompile: Function): Function {
           }
         }
         // merge custom modules
+        // 合并自定义模块
         if (options.modules) {
           finalOptions.modules =
             (baseOptions.modules || []).concat(options.modules)
@@ -57,7 +59,7 @@ export function createCompilerCreator (baseCompile: Function): Function {
       }
 
       finalOptions.warn = warn
-
+      // 调用 baseCompile 编译模板
       const compiled = baseCompile(template.trim(), finalOptions)
       if (process.env.NODE_ENV !== 'production') {
         detectErrors(compiled.ast, warn)

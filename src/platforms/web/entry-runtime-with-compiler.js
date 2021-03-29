@@ -29,7 +29,6 @@ Vue.prototype.$mount = function (
     )
     return this
   }
-
   const options = this.$options
   // resolve template/el and convert to render function
   // 把模板转换成render函数
@@ -69,7 +68,7 @@ Vue.prototype.$mount = function (
       if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
         mark('compile')
       }
-
+      // eslint-disable-next-line no-debugger
       const { render, staticRenderFns } = compileToFunctions(template, {
         outputSourceRange: process.env.NODE_ENV !== 'production',
         shouldDecodeNewlines,

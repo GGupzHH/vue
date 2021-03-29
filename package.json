@@ -22,7 +22,7 @@
     "dev:compiler": "rollup -w -c scripts/config.js --environment TARGET:web-compiler ",
     "dev:weex": "rollup -w -c scripts/config.js --environment TARGET:weex-framework",
     "dev:weex:factory": "rollup -w -c scripts/config.js --environment TARGET:weex-factory",
-    "dev:weex:compiler": "rollup -w -c scripts/config.js --environment TARGET:weex-compiler ",
+    "dev:weex:compiler": "rollup -w -c scripts/config.js --environment TARGET:weex-coastmpiler ",
     "build": "node scripts/build.js --sourcemap",
     "build:ssr": "npm run build -- web-runtime-cjs,web-server-renderer",
     "build:weex": "npm run build -- weex",
