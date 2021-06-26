@@ -89,6 +89,7 @@ export function eventsMixin (Vue: Class<Component>) {
   Vue.prototype.$off = function (event?: string | Array<string>, fn?: Function): Component {
     const vm: Component = this
     // all
+    // 如果没有传任何参数  将清空所用事件监听器
     if (!arguments.length) {
       vm._events = Object.create(null)
       return vm
@@ -102,6 +103,7 @@ export function eventsMixin (Vue: Class<Component>) {
     }
     // specific event
     const cbs = vm._events[event]
+    // 如果没有cbs 则没有订阅过这个事件
     if (!cbs) {
       return vm
     }
@@ -114,6 +116,8 @@ export function eventsMixin (Vue: Class<Component>) {
     let i = cbs.length
     while (i--) {
       cb = cbs[i]
+      // 这里的判断是为了判断 once里面的 on.fn
+      // 调用off 参数如果提供了 回调 则清除指定事件监听器
       if (cb === fn || cb.fn === fn) {
         cbs.splice(i, 1)
         break
@@ -136,6 +140,7 @@ export function eventsMixin (Vue: Class<Component>) {
         )
       }
     }
+    // 判断当前自定义事件 回调函数列表是否存在 存在则循环调用
     let cbs = vm._events[event]
     if (cbs) {
       cbs = cbs.length > 1 ? toArray(cbs) : cbs

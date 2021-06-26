@@ -15,7 +15,7 @@ import { warn } from '../util/index'
 // 因为使用了class的话 再在原型上挂载就很不搭
 
 
-// Vue构造函数
+// Vue构造函数 入口函数
 function Vue (options) {
   // 判断当前环境  并且判断当前Vue构造函数内部this是否指向Vue实例
   if (process.env.NODE_ENV !== 'production' && !(this instanceof Vue)) {
