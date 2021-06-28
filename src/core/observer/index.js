@@ -228,16 +228,24 @@ export function set (target: Array<any> | Object, key: any, val: any): any {
   ) {
     warn(`Cannot set reactive property on undefined, null, or primitive value: ${(target: any)}`)
   }
+  
+  // target 如果是数组 
+  // 则判断当前索引是否是一个存在(isFinite)的整数
   if (Array.isArray(target) && isValidArrayIndex(key)) {
     target.length = Math.max(target.length, key)
     target.splice(key, 1, val)
     return val
   }
+
+  // target如果是对象 并且key是target已有的属性
+  // 这个属性不能是对象原型上的属性
   if (key in target && !(key in Object.prototype)) {
+    // 直接赋值并返回
     target[key] = val
     return val
   }
   const ob = (target: any).__ob__
+  // 判断是不是Vue实例 或者 根组件
   if (target._isVue || (ob && ob.vmCount)) {
     process.env.NODE_ENV !== 'production' && warn(
       'Avoid adding reactive properties to a Vue instance or its root $data ' +
@@ -245,10 +253,15 @@ export function set (target: Array<any> | Object, key: any, val: any): any {
     )
     return val
   }
+  // 如果ob 不是响应式对象则直接返回 因为ob 本身就不是响应式的  给他添加属性就不需要派发更新了
   if (!ob) {
     target[key] = val
     return val
   }
+  // ob.value 就是当前的target 
+  // 因为当前的 target 是响应式 所以如果给target添加新属性的时候
+  // 首先要将新添加的属性做响应式处理
+  // 其次需要派发更新 target
   defineReactive(ob.value, key, val)
   ob.dep.notify()
   return val
@@ -263,10 +276,14 @@ export function del (target: Array<any> | Object, key: any) {
   ) {
     warn(`Cannot delete reactive property on undefined, null, or primitive value: ${(target: any)}`)
   }
+  // 判断target是否是数组 并且索引是否存在
   if (Array.isArray(target) && isValidArrayIndex(key)) {
+    // 因为target 已经是做了双向数据绑定的了 所以这里使用splice去删除指定索引元素
+    // 并且可以直接派发更新
     target.splice(key, 1)
     return
   }
+
   const ob = (target: any).__ob__
   if (target._isVue || (ob && ob.vmCount)) {
     process.env.NODE_ENV !== 'production' && warn(
@@ -275,13 +292,17 @@ export function del (target: Array<any> | Object, key: any) {
     )
     return
   }
+  // 如果是个对象  并且该对象不存在 key 这个属性 则直接返回
   if (!hasOwn(target, key)) {
     return
   }
+  // 删除对象属性
   delete target[key]
+  // 不是响应式的  所以不派发更新
   if (!ob) {
     return
   }
+  // 派发更新
   ob.dep.notify()
 }
 
