@@ -72,6 +72,8 @@ function isPlainObject (obj) {
  */
 function isValidArrayIndex (val) {
   var n = parseFloat(String(val));
+  // 先判断当前number类型向下取整是否是本身 
+  // 然后判断isFinite 判断当前索引是否是一个有点的数字 
   return n >= 0 && Math.floor(n) === n && isFinite(val)
 }
 
