@@ -39,9 +39,19 @@ let timerFunc
 // completely stops working after triggering a few times... so, if native
 // Promise is available, we will use it:
 /* istanbul ignore next, $flow-disable-line */
+
+// nextTick行为利用了可以访问的微任务队列
+//通过native Promise。然后或MutationObserver。
+// MutationObserver有更广泛的支持，但是它有严重的bug
+// UIWebView在iOS中的>= 9.3.3当触摸事件处理程序触发。它
+//触发几次后完全停止工作…所以,如果本地
+//承诺是可用的，我们将使用它:
+// 因为promise是异步任务 所以会在同步任务执行完成之后执行
+/* Istanbul ignore next， $flow-disable-line */
 if (typeof Promise !== 'undefined' && isNative(Promise)) {
   const p = Promise.resolve()
   timerFunc = () => {
+    // 所以这时候会清空回调列表
     p.then(flushCallbacks)
     // In problematic UIWebViews, Promise.then doesn't completely break, but
     // it can get stuck in a weird state where callbacks are pushed into the
@@ -84,6 +94,8 @@ if (typeof Promise !== 'undefined' && isNative(Promise)) {
   }
 }
 
+// 每次调用 nextTick都会将当前回调存入 callbacks
+// nextTick有第二个参数 可以设定当前回调函数内部this指向
 export function nextTick (cb?: Function, ctx?: Object) {
   let _resolve
   callbacks.push(() => {
