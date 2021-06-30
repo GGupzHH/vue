@@ -1117,16 +1117,24 @@
     ) {
       warn(("Cannot set reactive property on undefined, null, or primitive value: " + ((target))));
     }
+    
+    // target 如果是数组 
+    // 则判断当前索引是否是一个存在(isFinite)的整数
     if (Array.isArray(target) && isValidArrayIndex(key)) {
       target.length = Math.max(target.length, key);
       target.splice(key, 1, val);
       return val
     }
+
+    // target如果是对象 并且key是target已有的属性
+    // 这个属性不能是对象原型上的属性
     if (key in target && !(key in Object.prototype)) {
+      // 直接赋值并返回
       target[key] = val;
       return val
     }
     var ob = (target).__ob__;
+    // 判断是不是Vue实例 或者 根组件
     if (target._isVue || (ob && ob.vmCount)) {
       warn(
         'Avoid adding reactive properties to a Vue instance or its root $data ' +
@@ -1134,10 +1142,15 @@
       );
       return val
     }
+    // 如果ob 不是响应式对象则直接返回 因为ob 本身就不是响应式的  给他添加属性就不需要派发更新了
     if (!ob) {
       target[key] = val;
       return val
     }
+    // ob.value 就是当前的target 
+    // 因为当前的 target 是响应式 所以如果给target添加新属性的时候
+    // 首先要将新添加的属性做响应式处理
+    // 其次需要派发更新 target
     defineReactive$$1(ob.value, key, val);
     ob.dep.notify();
     return val
@@ -1151,10 +1164,14 @@
     ) {
       warn(("Cannot delete reactive property on undefined, null, or primitive value: " + ((target))));
     }
+    // 判断target是否是数组 并且索引是否存在
     if (Array.isArray(target) && isValidArrayIndex(key)) {
+      // 因为target 已经是做了双向数据绑定的了 所以这里使用splice去删除指定索引元素
+      // 并且可以直接派发更新
       target.splice(key, 1);
       return
     }
+
     var ob = (target).__ob__;
     if (target._isVue || (ob && ob.vmCount)) {
       warn(
@@ -1163,13 +1180,17 @@
       );
       return
     }
+    // 如果是个对象  并且该对象不存在 key 这个属性 则直接返回
     if (!hasOwn(target, key)) {
       return
     }
+    // 删除对象属性
     delete target[key];
+    // 不是响应式的  所以不派发更新
     if (!ob) {
       return
     }
+    // 派发更新
     ob.dep.notify();
   }
 
@@ -1971,9 +1992,19 @@
   // completely stops working after triggering a few times... so, if native
   // Promise is available, we will use it:
   /* istanbul ignore next, $flow-disable-line */
+
+  // nextTick行为利用了可以访问的微任务队列
+  //通过native Promise。然后或MutationObserver。
+  // MutationObserver有更广泛的支持，但是它有严重的bug
+  // UIWebView在iOS中的>= 9.3.3当触摸事件处理程序触发。它
+  //触发几次后完全停止工作…所以,如果本地
+  //承诺是可用的，我们将使用它:
+  // 因为promise是异步任务 所以会在同步任务执行完成之后执行
+  /* Istanbul ignore next， $flow-disable-line */
   if (typeof Promise !== 'undefined' && isNative(Promise)) {
     var p = Promise.resolve();
     timerFunc = function () {
+      // 所以这时候会清空回调列表
       p.then(flushCallbacks);
       // In problematic UIWebViews, Promise.then doesn't completely break, but
       // it can get stuck in a weird state where callbacks are pushed into the
@@ -2016,6 +2047,8 @@
     };
   }
 
+  // 每次调用 nextTick都会将当前回调存入 callbacks
+  // nextTick有第二个参数 可以设定当前回调函数内部this指向
   function nextTick (cb, ctx) {
     var _resolve;
     callbacks.push(function () {
@@ -2506,6 +2539,7 @@
       for (var i = 0; i < keys.length; i++) {
         var key = keys[i];
         // #6574 in case the inject object is observed...
+        // 如果是以 __ob__ 插入则跳过
         if (key === '__ob__') { continue }
         var provideKey = inject[key].from;
         var source = vm;
@@ -3896,6 +3930,7 @@
     Vue.prototype.$off = function (event, fn) {
       var vm = this;
       // all
+      // 如果没有传任何参数  将清空所用事件监听器
       if (!arguments.length) {
         vm._events = Object.create(null);
         return vm
@@ -3909,6 +3944,7 @@
       }
       // specific event
       var cbs = vm._events[event];
+      // 如果没有cbs 则没有订阅过这个事件
       if (!cbs) {
         return vm
       }
@@ -3921,6 +3957,8 @@
       var i = cbs.length;
       while (i--) {
         cb = cbs[i];
+        // 这里的判断是为了判断 once里面的 on.fn
+        // 调用off 参数如果提供了 回调 则清除指定事件监听器
         if (cb === fn || cb.fn === fn) {
           cbs.splice(i, 1);
           break
@@ -3943,6 +3981,7 @@
           );
         }
       }
+      // 判断当前自定义事件 回调函数列表是否存在 存在则循环调用
       var cbs = vm._events[event];
       if (cbs) {
         cbs = cbs.length > 1 ? toArray(cbs) : cbs;
@@ -4129,6 +4168,7 @@
         measure(("vue " + name + " patch"), startTag, endTag);
       };
     } else {
+      // 首次渲染的时候 updateComponent 会被传入Watcher中  Watcher中会调用 get 方法执行 updateComponent
       updateComponent = function () {
         vm._update(vm._render(), hydrating);
       };
@@ -5209,7 +5249,7 @@
   // 因为使用了class的话 再在原型上挂载就很不搭
 
 
-  // Vue构造函数
+  // Vue构造函数 入口函数
   function Vue (options) {
     // 判断当前环境  并且判断当前Vue构造函数内部this是否指向Vue实例
     if (!(this instanceof Vue)) {
