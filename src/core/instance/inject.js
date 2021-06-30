@@ -54,7 +54,17 @@ export function resolveInject (inject: any, vm: Component): ?Object {
     for (let i = 0; i < keys.length; i++) {
       const key = keys[i]
       // #6574 in case the inject object is observed...
+      // 如果是以 __ob__ 插入则跳过
       if (key === '__ob__') continue
+      // 在 mergeOptions的时候 调用了  normalizeInject 这个方法 
+      // 目的是初始化 inject 会改变数据的表现形式
+      // inject: ['bar'] 会变成
+      // inject: {
+      //   bar: {
+      //     from: 'bar'
+      //   }
+      // }
+      // 所以下面的from 属性拿到的还是 inject[i]
       const provideKey = inject[key].from
       let source = vm
       while (source) {

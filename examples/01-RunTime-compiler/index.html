@@ -28,7 +28,16 @@
     // },
     data: {
       msg: 'Hello World'
-    }
+    },
+    inject: ['msg']
+  })
+  vm.component('a', {
+    data: function () {
+      return {
+        a : 1
+      }
+    },
+    inject: ['msg']
   })
 
 </script>

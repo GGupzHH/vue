@@ -123,6 +123,8 @@ export function resolveConstructorOptions (Ctor: Class<Component>) {
       if (modifiedOptions) {
         extend(Ctor.extendOptions, modifiedOptions)
       }
+      // 将用户传入的 options 合并
+      // 这里的合并 添加了新的属性
       options = Ctor.options = mergeOptions(superOptions, Ctor.extendOptions)
       if (options.name) {
         options.components[options.name] = Ctor

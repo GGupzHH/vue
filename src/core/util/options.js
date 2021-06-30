@@ -295,6 +295,7 @@ export function validateComponentName (name: string) {
  * Ensure all props option syntax are normalized into the
  * Object-based format.
  */
+// 合并处理props
 function normalizeProps (options: Object, vm: ?Component) {
   const props = options.props
   if (!props) return
@@ -305,7 +306,9 @@ function normalizeProps (options: Object, vm: ?Component) {
     while (i--) {
       val = props[i]
       if (typeof val === 'string') {
+        // 去除 '-'
         name = camelize(val)
+        // 设置初始数据表现形式
         res[name] = { type: null }
       } else if (process.env.NODE_ENV !== 'production') {
         warn('props must be strings when using array syntax.')
@@ -315,6 +318,9 @@ function normalizeProps (options: Object, vm: ?Component) {
     for (const key in props) {
       val = props[key]
       name = camelize(key)
+      // 这里分别判断了 props是对象的时候
+      // 传入的propsItem如果是对象 这说明用户自定义了当前propsItem的各项属性
+      // 如果不是 则用户只设定了当前propsItem的类型  所以直接赋值 { type: val }
       res[name] = isPlainObject(val)
         ? val
         : { type: val }
@@ -332,10 +338,22 @@ function normalizeProps (options: Object, vm: ?Component) {
 /**
  * Normalize all injections into Object-based format
  */
+// 合并处理inject
 function normalizeInject (options: Object, vm: ?Component) {
+  // 将 options的引用传递给inject
   const inject = options.inject
   if (!inject) return
+  // 重置normalized 和 options.inject 
+  // 这里不会清空 inject 因为原本的数据还是被 inject 这个变量引用的  所以不会被销毁 
   const normalized = options.inject = {}
+  // 如果 inject 传入的是数组 则处理成需要的表现形式
+  // inject: ['bar']
+
+  // inject: {
+  //   bar: {
+  //     from: 'bar'
+  //   }
+  // }
   if (Array.isArray(inject)) {
     for (let i = 0; i < inject.length; i++) {
       normalized[inject[i]] = { from: inject[i] }
@@ -359,6 +377,18 @@ function normalizeInject (options: Object, vm: ?Component) {
 /**
  * Normalize raw function directives into object format.
  */
+// 合并处理directives
+// 指令的处理方式
+// directives: {
+//   'v-test': fn
+// }
+
+// directives: {
+//   'v-test': {
+//   bind: fn,
+//   update: fn
+// }
+// }
 function normalizeDirectives (options: Object) {
   const dirs = options.directives
   if (dirs) {
