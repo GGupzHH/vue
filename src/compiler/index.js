@@ -22,6 +22,7 @@ export const createCompiler = createCompilerCreator(function baseCompile (
   if (options.optimize !== false) {
     // 标记AST中的静态根节点
     // 标记静态子树
+    // 如果为静态节点则会加上static属性 为 true
     // patch的时候会跳过静态节点
     optimize(ast, options)
   }
