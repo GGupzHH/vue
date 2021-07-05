@@ -191,6 +191,8 @@ export function mountComponent (
   } else {
     // 首次渲染的时候 updateComponent 会被传入Watcher中  Watcher中会调用 get 方法执行 updateComponent
     updateComponent = () => {
+      // _update 方法会将Vnode 渲染成真实DOM
+      // compiler那边只是将 _render 函数生成 并没有调用
       vm._update(vm._render(), hydrating)
     }
   }

@@ -745,6 +745,7 @@
       subs.sort(function (a, b) { return a.id - b.id; });
     }
     for (var i = 0, l = subs.length; i < l; i++) {
+      // 调用每一个Watcher的update方法
       subs[i].update();
     }
   };
@@ -1011,6 +1012,7 @@
       return
     }
     var ob;
+    // 判断是否已经是响应式对象
     if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
       ob = value.__ob__;
     } else if (
@@ -1484,6 +1486,7 @@
    * Ensure all props option syntax are normalized into the
    * Object-based format.
    */
+  // 合并处理props
   function normalizeProps (options, vm) {
     var props = options.props;
     if (!props) { return }
@@ -1494,7 +1497,9 @@
       while (i--) {
         val = props[i];
         if (typeof val === 'string') {
+          // 去除 '-'
           name = camelize(val);
+          // 设置初始数据表现形式
           res[name] = { type: null };
         } else {
           warn('props must be strings when using array syntax.');
@@ -1504,6 +1509,9 @@
       for (var key in props) {
         val = props[key];
         name = camelize(key);
+        // 这里分别判断了 props是对象的时候
+        // 传入的propsItem如果是对象 这说明用户自定义了当前propsItem的各项属性
+        // 如果不是 则用户只设定了当前propsItem的类型  所以直接赋值 { type: val }
         res[name] = isPlainObject(val)
           ? val
           : { type: val };
@@ -1521,10 +1529,22 @@
   /**
    * Normalize all injections into Object-based format
    */
+  // 合并处理inject
   function normalizeInject (options, vm) {
+    // 将 options的引用传递给inject
     var inject = options.inject;
     if (!inject) { return }
+    // 重置normalized 和 options.inject 
+    // 这里不会清空 inject 因为原本的数据还是被 inject 这个变量引用的  所以不会被销毁 
     var normalized = options.inject = {};
+    // 如果 inject 传入的是数组 则处理成需要的表现形式
+    // inject: ['bar']
+
+    // inject: {
+    //   bar: {
+    //     from: 'bar'
+    //   }
+    // }
     if (Array.isArray(inject)) {
       for (var i = 0; i < inject.length; i++) {
         normalized[inject[i]] = { from: inject[i] };
@@ -1548,6 +1568,18 @@
   /**
    * Normalize raw function directives into object format.
    */
+  // 合并处理directives
+  // 指令的处理方式
+  // directives: {
+  //   'v-test': fn
+  // }
+
+  // directives: {
+  //   'v-test': {
+  //   bind: fn,
+  //   update: fn
+  // }
+  // }
   function normalizeDirectives (options) {
     var dirs = options.directives;
     if (dirs) {
@@ -2541,6 +2573,15 @@
         // #6574 in case the inject object is observed...
         // 如果是以 __ob__ 插入则跳过
         if (key === '__ob__') { continue }
+        // 在 mergeOptions的时候 调用了  normalizeInject 这个方法 
+        // 目的是初始化 inject 会改变数据的表现形式
+        // inject: ['bar'] 会变成
+        // inject: {
+        //   bar: {
+        //     from: 'bar'
+        //   }
+        // }
+        // 所以下面的from 属性拿到的还是 inject[i]
         var provideKey = inject[key].from;
         var source = vm;
         while (source) {
@@ -5085,12 +5126,15 @@
       options
     ) {
       var vm = this;
+      // isPlainObject 用toString判断是否是对象
       if (isPlainObject(cb)) {
         return createWatcher(vm, expOrFn, cb, options)
       }
       options = options || {};
       options.user = true;
+      // 创建Watcher实例
       var watcher = new Watcher(vm, expOrFn, cb, options);
+      // immediate 是否立即执行
       if (options.immediate) {
         try {
           cb.call(vm, watcher.value);
@@ -5098,6 +5142,7 @@
           handleError(error, vm, ("callback for immediate watcher \"" + (watcher.expression) + "\""));
         }
       }
+      // 返回清除Watcher函数
       return function unwatchFn () {
         watcher.teardown();
       }
@@ -5217,6 +5262,8 @@
         if (modifiedOptions) {
           extend(Ctor.extendOptions, modifiedOptions);
         }
+        // 将用户传入的 options 合并
+        // 这里的合并 添加了新的属性
         options = Ctor.options = mergeOptions(superOptions, Ctor.extendOptions);
         if (options.name) {
           options.components[options.name] = Ctor;
@@ -12089,6 +12136,7 @@
     if (options.optimize !== false) {
       // 标记AST中的静态根节点
       // 标记静态子树
+      // 如果为静态节点则会加上static属性 为 true
       // patch的时候会跳过静态节点
       optimize(ast, options);
     }
@@ -12184,6 +12232,7 @@
           mark('compile');
         }
         // eslint-disable-next-line no-debugger
+        // 传入模板  将模板处理成ast抽象语法书
         var ref = compileToFunctions(template, {
           outputSourceRange: "development" !== 'production',
           shouldDecodeNewlines: shouldDecodeNewlines,
