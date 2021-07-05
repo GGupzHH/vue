@@ -7,7 +7,13 @@
   
 </head>
 <body>
-  <h1 id="app"></h1>
+  <div id="app">
+    <header>头部</header>
+    <div>
+      内容
+      <h1>{{ msg }}</h1>
+    </div>
+  </div>
 </body>
 <script src="../../dist/vue.js"></script>
 <!-- <script src="../../dist/vue.runtime.js"></script> -->
@@ -28,16 +34,7 @@
     // },
     data: {
       msg: 'Hello World'
-    },
-    inject: ['msg']
-  })
-  vm.component('a', {
-    data: function () {
-      return {
-        a : 1
-      }
-    },
-    inject: ['msg']
+    }
   })
 
 </script>

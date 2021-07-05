@@ -69,6 +69,7 @@ Vue.prototype.$mount = function (
         mark('compile')
       }
       // eslint-disable-next-line no-debugger
+      // 传入模板  将模板处理成ast抽象语法书
       const { render, staticRenderFns } = compileToFunctions(template, {
         outputSourceRange: process.env.NODE_ENV !== 'production',
         shouldDecodeNewlines,
