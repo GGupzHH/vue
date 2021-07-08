@@ -39,6 +39,9 @@ export function initMixin (Vue: Class<Component>) {
       console.log(vm, options)
       initInternalComponent(vm, options)
     } else {
+      // mergeOptions 会将data的数据也进行合并
+      // 如果是子组件 会将父子组件data数据合并 返回一个新函数 mergedInstanceDataFn
+      // 所以在后面initData会判断data是否为function
       vm.$options = mergeOptions(
         resolveConstructorOptions(vm.constructor),
         options || {},

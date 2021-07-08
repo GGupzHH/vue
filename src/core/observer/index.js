@@ -43,7 +43,8 @@ export class Observer {
     this.value = value
     this.dep = new Dep()
     this.vmCount = 0
-    // 判断是否已经设置响应式 
+    // 给当前对象添加 __ob__属性 并且将 __ob__ 设置成当前对象的响应式属性
+    // 设置响应式 
     def(value, '__ob__', this)
     // 判断当前是数组还是对象
     if (Array.isArray(value)) {

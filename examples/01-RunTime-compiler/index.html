@@ -12,6 +12,8 @@
     <div>
       内容
       <h1>{{ msg }}</h1>
+      <h1>{{ name }}</h1>
+      <h1>{{ age }}</h1>
     </div>
   </div>
 </body>
@@ -33,9 +35,18 @@
     //   return h('h1', this.msg)
     // },
     data: {
-      msg: 'Hello World'
+      msg: 'Hello World',
+      name: 'zs',
+      age: 123
     }
   })
+  function test () {
+    vm.msg = {
+      name: '1233'
+    }
+  }
+
+  test()
 
 </script>
 </html>

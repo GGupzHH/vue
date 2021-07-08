@@ -166,7 +166,10 @@ function initData (vm: Component) {
         vm
       )
     } else if (!isReserved(key)) {
-      // 如果没有重名则将 data 中的属性设置成响应式并且挂载到_data上
+      // 首先会将data中的数据代理到当前组件实例上
+      // vm做代理将当前组件所有data的key绑定 
+      // 当直接通过组件实例去修改数据的时候 会触发 proxy 内部绑定好的set 或者 get方法
+      // 而set 或者 get方法是通过_data去改变数据的  这时候触发了双向数据绑定的逻辑 派发更新
       proxy(vm, `_data`, key)
     }
   }
