@@ -486,6 +486,7 @@
 
   /**
    * Check if a string starts with $ or _
+   * 检查字符串是否以 $ 和 _ 开头
    */
   function isReserved (str) {
     var c = (str + '').charCodeAt(0);
@@ -935,7 +936,8 @@
     this.value = value;
     this.dep = new Dep();
     this.vmCount = 0;
-    // 判断是否已经设置响应式 
+    // 给当前对象添加 __ob__属性 并且将 __ob__ 设置成当前对象的响应式属性
+    // 设置响应式 
     def(value, '__ob__', this);
     // 判断当前是数组还是对象
     if (Array.isArray(value)) {
@@ -4211,6 +4213,8 @@
     } else {
       // 首次渲染的时候 updateComponent 会被传入Watcher中  Watcher中会调用 get 方法执行 updateComponent
       updateComponent = function () {
+        // _update 方法会将Vnode 渲染成真实DOM
+        // compiler那边只是将 _render 函数生成 并没有调用
         vm._update(vm._render(), hydrating);
       };
     }
@@ -4906,7 +4910,10 @@
           vm
         );
       } else if (!isReserved(key)) {
-        // 如果没有重名则将 data 中的属性设置成响应式并且挂载到_data上
+        // 首先会将data中的数据代理到当前组件实例上
+        // vm做代理将当前组件所有data的key绑定 
+        // 当直接通过组件实例去修改数据的时候 会触发 proxy 内部绑定好的set 或者 get方法
+        // 而set 或者 get方法是通过_data去改变数据的  这时候触发了双向数据绑定的逻辑 派发更新
         proxy(vm, "_data", key);
       }
     }
@@ -5180,6 +5187,9 @@
         console.log(vm, options);
         initInternalComponent(vm, options);
       } else {
+        // mergeOptions 会将data的数据也进行合并
+        // 如果是子组件 会将父子组件data数据合并 返回一个新函数 mergedInstanceDataFn
+        // 所以在后面initData会判断data是否为function
         vm.$options = mergeOptions(
           resolveConstructorOptions(vm.constructor),
           options || {},
@@ -5192,12 +5202,15 @@
       }
       // expose real self
       vm._self = vm;
-      // 初始化函数 给 Vue实例成员初始化
-      // 初始化生命周期相关的钩子函数
+      // 初始化vm.$parent, vm.$root, vm.$children, vm.$refs 等属性值
       initLifecycle(vm);
-      // 初始化一些事件
+      // 初始化vm._events={}，初始化事件系统 实际上是父组件在模板中使用v-on或@注册的监听子组件内触发的事件
       initEvents(vm);
       // 初始化render函数
+      // 主要定义两个方法
+      // 1. vm._c，此方法用于用户使用template模式
+      // 2. vm.$createElement，此方法用于用户手写render函数
+      // 这2个方法，最终都会调用createElement方法
       // $slots  $scopedSlots  _c  $createElement  $attrs  $listeners
       initRender(vm);
       // 触发生命周期函数  beforeCreate
@@ -5205,7 +5218,9 @@
       // 实现依赖注入 inject
       initInjections(vm); // resolve injections before data/props
 
-      // 初始化了 props methods data computed watch
+      // 初始化了 state props methods data computed watch
+      // 初始化的 state props methods 会遍历data中的所有key 检测是否存在props
+      
       // 并将对应属性设置成响应式挂载到 vm 实例
       initState(vm);
 
@@ -12142,6 +12157,7 @@
     }
     // 将AST转换成字符串形式的代码
     var code = generate(ast, options);
+    console.log(code);
     return {
       ast: ast,
       render: code.render,

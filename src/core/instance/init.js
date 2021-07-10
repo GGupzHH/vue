@@ -56,12 +56,15 @@ export function initMixin (Vue: Class<Component>) {
     }
     // expose real self
     vm._self = vm
-    // 初始化函数 给 Vue实例成员初始化
-    // 初始化生命周期相关的钩子函数
+    // 初始化vm.$parent, vm.$root, vm.$children, vm.$refs 等属性值
     initLifecycle(vm)
-    // 初始化一些事件
+    // 初始化vm._events={}，初始化事件系统 实际上是父组件在模板中使用v-on或@注册的监听子组件内触发的事件
     initEvents(vm)
     // 初始化render函数
+    // 主要定义两个方法
+    // 1. vm._c，此方法用于用户使用template模式
+    // 2. vm.$createElement，此方法用于用户手写render函数
+    // 这2个方法，最终都会调用createElement方法
     // $slots  $scopedSlots  _c  $createElement  $attrs  $listeners
     initRender(vm)
     // 触发生命周期函数  beforeCreate
@@ -69,7 +72,9 @@ export function initMixin (Vue: Class<Component>) {
     // 实现依赖注入 inject
     initInjections(vm) // resolve injections before data/props
 
-    // 初始化了 props methods data computed watch
+    // 初始化了 state props methods data computed watch
+    // 初始化的 state props methods 会遍历data中的所有key 检测是否存在props
+    
     // 并将对应属性设置成响应式挂载到 vm 实例
     initState(vm)
 
