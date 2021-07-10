@@ -28,6 +28,7 @@ export const createCompiler = createCompilerCreator(function baseCompile (
   }
   // 将AST转换成字符串形式的代码
   const code = generate(ast, options)
+  console.log(code)
   return {
     ast,
     render: code.render,
