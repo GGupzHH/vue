@@ -10,6 +10,7 @@ export let isUsingMicroTask = false
 const callbacks = []
 let pending = false
 
+// 清空异步任务列表 并执行
 function flushCallbacks () {
   pending = false
   const copies = callbacks.slice(0)
@@ -111,6 +112,7 @@ export function nextTick (cb?: Function, ctx?: Object) {
   })
   if (!pending) {
     pending = true
+    // timerFunc 这个函数是根据 不用环境的实现异步任务的方式 去执行callbacks 中的回调
     timerFunc()
   }
   // $flow-disable-line
